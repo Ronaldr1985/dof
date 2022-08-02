@@ -18,6 +18,25 @@ write_version :: proc() {
 	os.exit(0)
 }
 
+is_dir :: proc(path: string) -> (bool, os.Errno) {
+	d, derr := os.open(path)
+	if derr != 0 {
+		return false, derr
+	}
+	defer os.close(d)
+
+	fil, err := os.read_dir(d, -1)
+	if err == 20 {
+		return false, 0
+	} else if err != 0 {
+		return false, err
+	}
+	defer delete(fil)
+
+	return true, 0
+
+}
+
 get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]string, os.Errno) {
 	files : [dynamic]string = nil
 	relative_path : string
@@ -32,6 +51,7 @@ get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]string, os.E
 	if err != 0 {
 		return nil, err
 	}
+	defer delete(fil)
 
 	for fi in fil {
 		if fi.is_dir {
@@ -43,21 +63,29 @@ get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]string, os.E
 		}
 	}
 
-	delete(fil)
-
 	return files, 0
 }
 
 main :: proc() {
-	// FIXME: Check that the file/folder exists
-	// this should be the first check
+	folder : string = os.args[2]
+	if is_dir, err := is_dir(folder); err == os.EPERM || err == os.ENOENT {
+		fmt.fprintln(os.stderr, "Don't have permission to the folder or file, or the file or folder doesn't exist")
+		os.exit(int(err))
+	} else if err != 0 {
+		fmt.fprintln(os.stderr, "Got an error, whilst checking if the file or folder exists: ", os.Errno(err))
+		os.exit(-1)
+	} else if is_dir {
+		fmt.println("is_dir: ", is_dir)
+	} else if !is_dir {
+		fmt.println("Have a file, exiting for now...")
+		os.exit(0)
+	}
 	if len(os.args) == 3 {
 		/*
 		Arguments:
 			1. the time
 			2. the folder
 		*/
-		folder : string = os.args[2]
 		time_argument : string = os.args[1]
 		number : string = ""
 		nanoseconds : f64 = 0
