@@ -7,6 +7,11 @@ import "core:strings"
 import "core:time"
 import "core:unicode"
 
+old_file :: struct {
+	path: string,
+	type: rune,
+}
+
 write_help :: proc() {
 	fmt.println("Need to write a help message")
 }
@@ -37,9 +42,11 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 
 }
 
-get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]string, os.Errno) {
-	files : [dynamic]string = nil
-	relative_path : string
+get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]old_file, os.Errno) {
+	current_directory : string = os.get_current_directory()
+	old_files : [dynamic]old_file = nil
+	current_file : old_file
+	path : string
 
 	d, derr := os.open(directory)
 	if derr != 0 {
@@ -54,20 +61,30 @@ get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]string, os.E
 	defer delete(fil)
 
 	for fi in fil {
-		if fi.is_dir {
-			// FIXME: Determine what needs to change if we find a folder
-		}
-		// relative_path = fmt.tprintf("%s/%s", directory, fi.name)
 		if diff := time.diff(fi.modification_time, t); diff > 0 {
-			append(&files, relative_path)
+			path = fmt.tprintf("%s/%s/%s", current_directory, directory, fi.name)
+			current_file.path = path
+			if fi.is_dir {
+				current_file.type = 'd'
+				// FIXME: Determine what needs to change if we find a folder
+			} else {
+				current_file.type = 'f'
+			}
+			append(&old_files, current_file)
 		}
 	}
 
-	return files, 0
+	return old_files, 0
 }
 
 main :: proc() {
+	/*
+	Arguments:
+		1. the time
+		2. the folder
+	*/
 	folder : string = os.args[2]
+	time_argument : string = os.args[1]
 	if is_dir, err := is_dir(folder); err == os.EPERM || err == os.ENOENT {
 		fmt.fprintln(os.stderr, "Don't have permission to the folder or file, or the file or folder doesn't exist")
 		os.exit(int(err))
@@ -81,12 +98,6 @@ main :: proc() {
 		os.exit(0)
 	}
 	if len(os.args) == 3 {
-		/*
-		Arguments:
-			1. the time
-			2. the folder
-		*/
-		time_argument : string = os.args[1]
 		number : string = ""
 		nanoseconds : f64 = 0
 		duration : time.Duration = 0
@@ -98,7 +109,7 @@ main :: proc() {
 			}
 			switch ch {
 			case '.':
-				number = fmt.aprintf("{}.", number)
+				number = fmt.tprintf("{}.", number)
 			case 's':
 				nanoseconds += strconv.atof(number)
 				number = ""
@@ -123,15 +134,15 @@ main :: proc() {
 		duration = time.Duration(nanoseconds * 1e9)
 		anything_modified_earlier_than_this := time.time_add(time.now(), -duration)
 
-		files, get_old_files_err := get_old_files(folder, anything_modified_earlier_than_this)
+		old_files, get_old_files_err := get_old_files(folder, anything_modified_earlier_than_this)
 		if get_old_files_err != 0 {
 			fmt.fprintln(os.stderr, "Failed to get old files with the following error: ", get_old_files_err)
 		}
-		defer delete(files)
+		defer delete(old_files)
 
-		fmt.println("Amount of files found to be delete: ", len(files))
-		for file in files {
-			fmt.println("Current file to be deleted: ", file)
+		fmt.println("Amount of files found to be delete: ", len(old_files))
+		for old_file in old_files {
+			fmt.println("Current file to be deleted: ", old_file.path)
 		}
 	} else {
 		fmt.fprintln(os.stderr, "Too many arguments passed to dof")
