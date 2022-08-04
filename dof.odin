@@ -42,21 +42,20 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 
 }
 
-get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]old_file, os.Errno) {
+get_old_files :: proc(directory: string, t: time.Time, old_files: ^[dynamic]old_file) -> (os.Errno) {
 	current_directory : string = os.get_current_directory()
-	old_files : [dynamic]old_file = nil
 	current_file : old_file
 	path : string
 
 	d, derr := os.open(directory)
 	if derr != 0 {
-		return nil, derr
+		return derr
 	}
 	defer os.close(d)
 
 	fil, err := os.read_dir(d, -1)
 	if err != 0 {
-		return nil, err
+		return err
 	}
 	defer delete(fil)
 
@@ -66,15 +65,19 @@ get_old_files :: proc(directory: string, t: time.Time) -> ([dynamic]old_file, os
 			current_file.path = path
 			if fi.is_dir {
 				current_file.type = 'd'
-				// FIXME: Determine what needs to change if we find a folder
+				append(old_files, current_file)
+				err = get_old_files(path, t, old_files)
+				if err != 0 {
+					return err
+				}
 			} else {
 				current_file.type = 'f'
 			}
-			append(&old_files, current_file)
+			append(old_files, current_file)
 		}
 	}
 
-	return old_files, 0
+	return 0
 }
 
 main :: proc() {
@@ -91,8 +94,6 @@ main :: proc() {
 	} else if err != 0 {
 		fmt.fprintln(os.stderr, "Got an error, whilst checking if the file or folder exists: ", os.Errno(err))
 		os.exit(-1)
-	} else if is_dir {
-		fmt.println("is_dir: ", is_dir)
 	} else if !is_dir {
 		fmt.println("Have a file, exiting for now...")
 		os.exit(0)
@@ -105,7 +106,6 @@ main :: proc() {
 		for ch, index in time_argument {
 			if ok := unicode.is_digit(ch); ok {
 				number = fmt.tprintf("{}{}", number, strconv._digit_value(ch))
-				fmt.println("current number: ", number)
 			}
 			switch ch {
 			case '.':
@@ -134,9 +134,11 @@ main :: proc() {
 		duration = time.Duration(nanoseconds * 1e9)
 		anything_modified_earlier_than_this := time.time_add(time.now(), -duration)
 
-		old_files, get_old_files_err := get_old_files(folder, anything_modified_earlier_than_this)
+		old_files : [dynamic]old_file
+		get_old_files_err := get_old_files(folder, anything_modified_earlier_than_this, &old_files)
 		if get_old_files_err != 0 {
-			fmt.fprintln(os.stderr, "Failed to get old files with the following error: ", get_old_files_err)
+			fmt.fprintln(os.stderr, "Failed to get old files with the following error: ", os.Errno(get_old_files_err))
+			os.exit(-1)
 		}
 		defer delete(old_files)
 
