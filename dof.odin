@@ -7,9 +7,44 @@ import "core:strings"
 import "core:time"
 import "core:unicode"
 
+LinuxError :: enum os.Errno { //constants copied from os
+	ERROR_NONE     = 0,
+	EPERM          = 1,
+	ENOENT         = 2,
+	ESRCH          = 3,
+	EINTR          = 4,
+	EIO            = 5,
+	ENXIO          = 6,
+	EBADF          = 9,
+	EAGAIN         = 11,
+	ENOMEM         = 12,
+	EACCES         = 13,
+	EFAULT         = 14,
+	EEXIST         = 17,
+	ENODEV         = 19,
+	ENOTDIR        = 20,
+	EISDIR         = 21,
+	EINVAL         = 22,
+	ENFILE         = 23,
+	EMFILE         = 24,
+	ETXTBSY        = 26,
+	EFBIG          = 27,
+	ENOSPC         = 28,
+	ESPIPE         = 29,
+	EROFS          = 30,
+	EPIPE          = 32,
+	ERANGE         = 34, /* Result too large */
+	EDEADLK        = 35, /* Resource deadlock would occur */
+	ENAMETOOLONG   = 36, /* File name too long */
+	ENOLCK         = 37, /* No record locks available */
+	ENOSYS         = 38, /* Invalid system call number */
+	ENOTEMPTY      = 39, /* Directory not empty */
+	ELOOP          = 40, /* Too many symbolic links encountered */
+}
+
 old_file :: struct {
 	path: string,
-	type: rune,
+	type: string,
 }
 
 write_help :: proc() {
@@ -39,7 +74,6 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 	defer delete(fil)
 
 	return true, 0
-
 }
 
 get_old_files :: proc(directory: string, t: time.Time, old_files: ^[dynamic]old_file) -> (os.Errno) {
@@ -64,17 +98,18 @@ get_old_files :: proc(directory: string, t: time.Time, old_files: ^[dynamic]old_
 			path = fmt.tprintf("%s/%s/%s", current_directory, directory, fi.name)
 			current_file.path = path
 			if fi.is_dir {
-				current_file.type = 'd'
+				current_file.type = "directory"
 				append(old_files, current_file)
-				err = get_old_files(path, t, old_files)
+				err = get_old_files(fmt.tprintf("%s/%s", directory, fi.name), t, old_files)
 				if err != 0 {
 					return err
 				}
 			} else {
-				current_file.type = 'f'
+				current_file.type = "file"
 			}
 			append(old_files, current_file)
 		}
+		current_file.path = ""
 	}
 
 	return 0
@@ -137,14 +172,25 @@ main :: proc() {
 		old_files : [dynamic]old_file
 		get_old_files_err := get_old_files(folder, anything_modified_earlier_than_this, &old_files)
 		if get_old_files_err != 0 {
-			fmt.fprintln(os.stderr, "Failed to get old files with the following error: ", os.Errno(get_old_files_err))
-			os.exit(-1)
+			fmt.fprintln(os.stderr, "Failed to get old files with the following error: ", LinuxError(get_old_files_err))
+			// os.exit(-1)
 		}
 		defer delete(old_files)
 
 		fmt.println("Amount of files found to be delete: ", len(old_files))
+
+		err: os.Errno
 		for old_file in old_files {
-			fmt.println("Current file to be deleted: ", old_file.path)
+			if old_file.type == "file" {
+				err = os.remove(old_file.path)
+			} else if old_file.type == "directory" {
+				err = os.remove_directory(old_file.path)
+			}
+			if err != 0 {
+				fmt.fprintln(os.stderr, "Failed to delete", old_file.path, "with the error code", LinuxError(err))
+			} else {
+				fmt.printf("removed %s '%s'\n", old_file.type, old_file.path)
+			}
 		}
 	} else {
 		fmt.fprintln(os.stderr, "Too many arguments passed to dof")
