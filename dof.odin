@@ -121,22 +121,23 @@ main :: proc() {
 		1. the time
 		2. the folder
 	*/
-	folder : string = os.args[2]
-	time_argument : string = os.args[1]
-	if is_dir, err := is_dir(folder); err == os.EPERM || err == os.ENOENT {
-		fmt.fprintln(os.stderr, "Don't have permission to the folder or file, or the file or folder doesn't exist")
-		os.exit(int(err))
-	} else if err != 0 {
-		fmt.fprintln(os.stderr, "Got an error, whilst checking if the file or folder exists: ", os.Errno(err))
-		os.exit(-1)
-	} else if !is_dir {
-		fmt.println("Have a file, exiting for now...")
-		os.exit(0)
-	}
 	if len(os.args) == 3 {
 		number : string = ""
 		nanoseconds : f64 = 0
 		duration : time.Duration = 0
+		folder : string = os.args[2]
+		time_argument : string = os.args[1]
+
+		if is_dir, err := is_dir(folder); err == os.EPERM || err == os.ENOENT {
+			fmt.fprintln(os.stderr, "Don't have permission to the folder or file, or the file or folder doesn't exist")
+			os.exit(int(err))
+		} else if err != 0 {
+			fmt.fprintln(os.stderr, "Got an error, whilst checking if the file or folder exists: ", os.Errno(err))
+			os.exit(-1)
+		} else if !is_dir {
+			fmt.println("Have a file, exiting for now...")
+			os.exit(0)
+		}
 
 		for ch, index in time_argument {
 			if ok := unicode.is_digit(ch); ok {
@@ -192,7 +193,9 @@ main :: proc() {
 				fmt.printf("removed %s '%s'\n", old_file.type, old_file.path)
 			}
 		}
-	} else {
+	} else if len(os.args) > 3 {
 		fmt.fprintln(os.stderr, "Too many arguments passed to dof")
+	} else {
+		fmt.fprintln(os.stderr, "Not enough arguments passed to dof")
 	}
 }
