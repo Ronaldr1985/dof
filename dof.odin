@@ -7,6 +7,10 @@ import "core:strings"
 import "core:time"
 import "core:unicode"
 
+// Number of directories and files removed
+number_files       : int = 0
+number_directories : int = 0
+
 LinuxError :: enum os.Errno { //constants copied from os
 	ERROR_NONE     = 0,
 	EPERM          = 1,
@@ -42,11 +46,6 @@ LinuxError :: enum os.Errno { //constants copied from os
 	ELOOP          = 40, /* Too many symbolic links encountered */
 }
 
-old_file :: struct {
-	path: string,
-	type: string,
-}
-
 write_help :: proc() {
 	fmt.println("Need to write a help message")
 }
@@ -76,9 +75,10 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 	return true, 0
 }
 
-get_old_files :: proc(directory: string, t: time.Time, old_files: ^[dynamic]old_file) -> (os.Errno) {
-	current_directory : string = os.get_current_directory()
-	current_file : old_file
+// Returns a list of old directories, and removes old files
+remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
+	current_working_directory : string = os.get_current_directory()
+	current_file : string
 	path : string
 
 	d, derr := os.open(directory)
@@ -94,22 +94,31 @@ get_old_files :: proc(directory: string, t: time.Time, old_files: ^[dynamic]old_
 	defer delete(fil)
 
 	for fi in fil {
+		current_file = fmt.tprintf("%s/%s/%s", current_working_directory, directory, fi.name)
 		if diff := time.diff(fi.modification_time, t); diff > 0 {
-			path = fmt.tprintf("%s/%s/%s", current_directory, directory, fi.name)
-			current_file.path = path
+			path = fmt.tprintf("%s/%s/%s", current_working_directory, directory, fi.name)
 			if fi.is_dir {
-				current_file.type = "directory"
-				append(old_files, current_file)
-				err = get_old_files(fmt.tprintf("%s/%s", directory, fi.name), t, old_files)
+				err = remove_old_files(fmt.tprintf("%s/%s", directory, fi.name), t)
 				if err != 0 {
 					return err
 				}
+				err = os.remove_directory(current_file)
+				if err == 0 {
+					number_directories+=1
+				} else {
+					fmt.fprintln(os.stderr, "Failed to remove directory:", current_file)
+					return err
+				}
 			} else {
-				current_file.type = "file"
+				err = os.remove(current_file)
+				if err == 0 {
+					number_files+=1
+				} else {
+					fmt.fprintln(os.stderr, "Failed to remove file:", current_file)
+					return err
+				}
 			}
-			append(old_files, current_file)
 		}
-		current_file.path = ""
 	}
 
 	return 0
@@ -129,10 +138,10 @@ main :: proc() {
 		time_argument : string = os.args[1]
 
 		if is_dir, err := is_dir(folder); err == os.EPERM || err == os.ENOENT {
-			fmt.fprintln(os.stderr, "Don't have permission to the folder or file, or the file or folder doesn't exist")
+			fmt.fprintln(os.stderr, "dof: don't have permission to the folder or file, or the file or folder doesn't exist")
 			os.exit(int(err))
 		} else if err != 0 {
-			fmt.fprintln(os.stderr, "Got an error, whilst checking if the file or folder exists: ", os.Errno(err))
+			fmt.fprintln(os.stderr, "dof: got an error, whilst checking if the file or folder exists: ", os.Errno(err))
 			os.exit(-1)
 		} else if !is_dir {
 			fmt.println("Have a file, exiting for now...")
@@ -170,29 +179,32 @@ main :: proc() {
 		duration = time.Duration(nanoseconds * 1e9)
 		anything_modified_earlier_than_this := time.time_add(time.now(), -duration)
 
-		old_files : [dynamic]old_file
-		get_old_files_err := get_old_files(folder, anything_modified_earlier_than_this, &old_files)
-		if get_old_files_err != 0 {
-			fmt.fprintln(os.stderr, "Failed to get old files with the following error: ", LinuxError(get_old_files_err))
-			// os.exit(-1)
-		}
-		defer delete(old_files)
-
-		fmt.println("Amount of files found to be delete: ", len(old_files))
-
-		err: os.Errno
-		for old_file in old_files {
-			if old_file.type == "file" {
-				err = os.remove(old_file.path)
-			} else if old_file.type == "directory" {
-				err = os.remove_directory(old_file.path)
+		// This need to be determined before we delete any files
+		// otherwise we will change the modification time of the
+		// directory when we are deleting files
+		remove_root_directory : bool = false
+		if fi, err := os.lstat(folder); err == 0 {
+			if diff := time.diff(fi.modification_time, anything_modified_earlier_than_this); diff >= 0 {
+				remove_root_directory = true
 			}
-			if err != 0 {
-				fmt.fprintln(os.stderr, "Failed to delete", old_file.path, "with the error code", LinuxError(err))
+		}
+
+		remove_old_files_err := remove_old_files(folder, anything_modified_earlier_than_this)
+		if remove_old_files_err != 0 {
+			fmt.fprintln(os.stderr, "dof: failed with error:", LinuxError(remove_old_files_err))
+			os.exit(int(remove_old_files_err))
+		}
+
+		if remove_root_directory {
+			if err := os.remove_directory(folder); err == 0 {
+				number_directories+=1
 			} else {
-				fmt.printf("removed %s '%s'\n", old_file.type, old_file.path)
+				fmt.fprintln(os.stderr, "dof: failed to delete directory:", folder)
 			}
 		}
+
+		fmt.println("Amount of directories deleted:", number_directories)
+		fmt.println("Amount of files deleted      :", number_files)
 	} else if len(os.args) > 3 {
 		fmt.fprintln(os.stderr, "Too many arguments passed to dof")
 	} else {
