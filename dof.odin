@@ -204,7 +204,7 @@ main :: proc() {
 		}
 
 		fmt.println("Amount of directories deleted:", number_directories)
-		fmt.println("Amount of files deleted      :", number_files)
+		fmt.println("Amount of files deleted:      ", number_files)
 	} else if len(os.args) > 3 {
 		fmt.fprintln(os.stderr, "Too many arguments passed to dof")
 	} else {
