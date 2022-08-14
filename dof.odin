@@ -11,41 +11,6 @@ import "core:unicode"
 number_files       : int = 0
 number_directories : int = 0
 
-LinuxError :: enum os.Errno { //constants copied from os
-	ERROR_NONE     = 0,
-	EPERM          = 1,
-	ENOENT         = 2,
-	ESRCH          = 3,
-	EINTR          = 4,
-	EIO            = 5,
-	ENXIO          = 6,
-	EBADF          = 9,
-	EAGAIN         = 11,
-	ENOMEM         = 12,
-	EACCES         = 13,
-	EFAULT         = 14,
-	EEXIST         = 17,
-	ENODEV         = 19,
-	ENOTDIR        = 20,
-	EISDIR         = 21,
-	EINVAL         = 22,
-	ENFILE         = 23,
-	EMFILE         = 24,
-	ETXTBSY        = 26,
-	EFBIG          = 27,
-	ENOSPC         = 28,
-	ESPIPE         = 29,
-	EROFS          = 30,
-	EPIPE          = 32,
-	ERANGE         = 34, /* Result too large */
-	EDEADLK        = 35, /* Resource deadlock would occur */
-	ENAMETOOLONG   = 36, /* File name too long */
-	ENOLCK         = 37, /* No record locks available */
-	ENOSYS         = 38, /* Invalid system call number */
-	ENOTEMPTY      = 39, /* Directory not empty */
-	ELOOP          = 40, /* Too many symbolic links encountered */
-}
-
 write_help :: proc() {
 	fmt.println("Need to write a help message")
 }
@@ -179,7 +144,7 @@ main :: proc() {
 		duration = time.Duration(nanoseconds * 1e9)
 		anything_modified_earlier_than_this := time.time_add(time.now(), -duration)
 
-		// This need to be determined before we delete any files
+		// This needs to be determined before we delete any files
 		// otherwise we will change the modification time of the
 		// directory when we are deleting files
 		remove_root_directory : bool = false
@@ -191,7 +156,7 @@ main :: proc() {
 
 		remove_old_files_err := remove_old_files(folder, anything_modified_earlier_than_this)
 		if remove_old_files_err != 0 {
-			fmt.fprintln(os.stderr, "dof: failed with error:", LinuxError(remove_old_files_err))
+			fmt.fprintln(os.stderr, "dof: failed with error:", OS_Error(remove_old_files_err))
 			os.exit(int(remove_old_files_err))
 		}
 
