@@ -40,7 +40,6 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 	return true, 0
 }
 
-// Returns a list of old directories, and removes old files
 remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
 	current_working_directory : string = os.get_current_directory()
 	current_file : string
@@ -89,14 +88,16 @@ remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
 	return 0
 }
 
+/*
+Arguments:
+1. the time
+2. the folder
+*/
 main :: proc() {
-	/*
-	Arguments:
-		1. the time
-		2. the folder
-	*/
+	stpwtch: time.Stopwatch
+	time.stopwatch_start(&stpwtch)
 	if len(os.args) == 3 {
-		number : string = ""
+		number := ""
 		nanoseconds : f64 = 0
 		duration : time.Duration = 0
 		folder : string = os.args[2]
@@ -168,8 +169,8 @@ main :: proc() {
 			}
 		}
 
-		fmt.println("Amount of directories deleted:", number_directories)
-		fmt.println("Amount of files deleted:      ", number_files)
+		time.stopwatch_stop(&stpwtch)
+		fmt.println("Deleted directories", number_directories, "and", number_files, "files in", time.stopwatch_duration(stpwtch))
 	} else if len(os.args) > 3 {
 		fmt.fprintln(os.stderr, "Too many arguments passed to dof")
 	} else {
