@@ -30,6 +30,9 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 	defer os.close(d)
 
 	fil, err := os.read_dir(d, -1)
+	for fi in fil {
+		os.file_info_delete(fi)
+	}
 	if err == 20 {
 		return false, 0
 	} else if err != 0 {
@@ -83,6 +86,7 @@ remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
 				}
 			}
 		}
+		os.file_info_delete(fi)
 	}
 
 	return 0
