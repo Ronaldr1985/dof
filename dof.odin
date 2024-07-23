@@ -77,7 +77,7 @@ remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
 				if err == 0 {
 					number_directories+=1
 				} else {
-					fmt.fprintln(os.stderr, "Failed to remove directory:", current_file)
+					fmt.eprintln("Failed to remove directory:", current_file)
 					return err
 				}
 			} else {
@@ -85,7 +85,7 @@ remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
 				if err == 0 {
 					number_files+=1
 				} else {
-					fmt.fprintln(os.stderr, "Failed to remove file:", current_file)
+					fmt.eprintln("Failed to remove file:", current_file)
 					return err
 				}
 			}
@@ -148,10 +148,10 @@ main :: proc() {
 	folder : string = os.args[2]
 
 	if is_dir, err := is_dir(folder); err == os.EPERM || err == os.ENOENT {
-		fmt.fprintln(os.stderr, "dof: don't have permission to the folder or file, or the file or folder doesn't exist")
+		fmt.eprintln("dof: don't have permission to the folder or file, or the file or folder doesn't exist")
 		os.exit(int(err))
 	} else if err != 0 {
-		fmt.fprintln(os.stderr, "dof: got an error, whilst checking if the file or folder exists: ", os.Errno(err))
+		fmt.eprintln("dof: got an error, whilst checking if the file or folder exists: ", os.Errno(err))
 		os.exit(-1)
 	} else if !is_dir {
 		fmt.println("Have a file, exiting for now...")
@@ -203,7 +203,7 @@ main :: proc() {
 
 	remove_old_files_err := remove_old_files(folder, anything_modified_earlier_than_this)
 	if remove_old_files_err != 0 {
-		fmt.fprintln(os.stderr, "dof: failed with error:", OS_Error(remove_old_files_err))
+		fmt.eprintln("dof: failed with error:", OS_Error(remove_old_files_err))
 		os.exit(int(remove_old_files_err))
 	}
 
@@ -211,7 +211,7 @@ main :: proc() {
 		if err := os.remove_directory(folder); err == 0 {
 			number_directories+=1
 		} else {
-			fmt.fprintln(os.stderr, "dof: failed to delete directory:", folder)
+			fmt.eprintln("dof: failed to delete directory:", folder)
 		}
 	}
 
