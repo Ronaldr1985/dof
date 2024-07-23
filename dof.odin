@@ -44,7 +44,6 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 }
 
 remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
-	current_working_directory : string = os.get_current_directory()
 	current_file : string
 	path : string
 
@@ -61,9 +60,9 @@ remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
 	defer delete(fil)
 
 	for fi in fil {
-		current_file = fmt.tprintf("%s/%s/%s", current_working_directory, directory, fi.name)
+		current_file = fmt.tprintf("%s/%s", directory, fi.name)
 		if diff := time.diff(fi.modification_time, t); diff > 0 {
-			path = fmt.tprintf("%s/%s/%s", current_working_directory, directory, fi.name)
+			path = fmt.tprintf("%s/%s", directory, fi.name)
 			if fi.is_dir {
 				err = remove_old_files(fmt.tprintf("%s/%s", directory, fi.name), t)
 				if err != 0 {
