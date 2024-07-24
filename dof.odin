@@ -14,9 +14,15 @@ number_directories : int = 0
 
 write_help :: proc() {
 	fmt.println("Usage: dof TIME DIRECTORY/FILE [OPTIONS]")
-	fmt.println("TIME: Delete files older than this, time should be in an interval format, e.g. 5m will delete files older than 5 minutes")
+	fmt.println(
+		"TIME: Delete files older than this, time should be in an interval format.",
+		"For example 5m will delete files older than 5 minutes",
+		sep="\n"
+	)
 	fmt.println("OPTIONS:")
-	fmt.println("  --quiet: Don't print summary")
+	fmt.println("  -quiet/--quiet     Don't print summary")
+	fmt.println("  -version/--version Print version information")
+	fmt.println("  -help/--help       Print this help message")
 	os.exit(0)
 }
 
