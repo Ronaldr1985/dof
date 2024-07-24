@@ -55,8 +55,8 @@ is_dir :: proc(path: string) -> (bool, os.Errno) {
 }
 
 remove_old_files :: proc(directory: string, t: time.Time) -> (os.Errno) {
-	current_file : string
-	path : string
+	current_file: string
+	path: string
 
 	d, derr := os.open(directory)
 	if derr != 0 {
