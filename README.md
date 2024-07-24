@@ -17,5 +17,7 @@ The above example will delete any files that are older than 10 seconds in the "D
 **dof** has a couple of flags they are listed below:
 
 ```
-    -quiet/--quiet:
+    -quiet/--quiet     Don't print summary when the program finishes
+    -version/--version Print version information
+    -help/--help       Print help information
 ```
